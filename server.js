@@ -52,6 +52,13 @@ app.post("/send-approval", async (req, res) => {
       .send({ success: false, message: "uid, email, name required" });
   }
 
+  // Save initial user record in Firebase
+  await admin.database().ref(`/users/${uid}`).set({
+    email,
+    name,
+    approved: false
+  });
+
   const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}`;
 
   const mailOptions = {
@@ -87,8 +94,32 @@ app.get("/approve", async (req, res) => {
   if (!uid) return res.status(400).send("<h3>Missing uid</h3>");
 
   try {
+    // Update approved flag
     await admin.database().ref(`/users/${uid}`).update({ approved: true });
-    res.send("<h2>✅ User approved successfully!</h2>");
+
+    // Fetch user data (email & name)
+    const snapshot = await admin.database().ref(`/users/${uid}`).once("value");
+    const user = snapshot.val();
+
+    if (user && user.email) {
+      // Send approval email to the user
+      const userMailOptions = {
+        from: process.env.GMAIL_USER || "youradmin@gmail.com",
+        to: user.email,
+        subject: "🎉 Your Account Has Been Approved",
+        html: `
+          <h2>Hello ${user.name || "User"},</h2>
+          <p>✅ Your account has been <b>approved</b> by the admin.</p>
+          <p>You can now log in and start using the system.</p>
+          <br/>
+          <p style="color:gray;font-size:12px">CME Access Management System</p>
+        `
+      };
+
+      await transporter.sendMail(userMailOptions);
+    }
+
+    res.send("<h2>✅ User approved successfully and confirmation email sent!</h2>");
   } catch (err) {
     console.error(err);
     res.status(500).send("<h2>❌ Error approving user</h2>");
