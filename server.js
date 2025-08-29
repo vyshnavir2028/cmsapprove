@@ -30,37 +30,57 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_USER || "vaishnavir2028@gmail.com",
     pass: process.env.GMAIL_PASS || "xdlkkdgyhtjfigyq"
   }
+  
+});
+transporter.verify((error, success) => {
+  if (error) console.error("Email transporter error:", error);
+  else console.log("Email transporter is ready");
 });
 
+
+
 /* =============================
-   🔹 Backend URL
+   🔹 Backend URL 
    ============================= */
-const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || "http://localhost:3000";
+const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || "https://cms-approve.onrender.com";
 
 /* =============================
    1) Android calls after signup
    ============================= */
 app.post("/send-approval", async (req, res) => {
-  const { uid, email, name, role } = req.body;
+  try {
+    const { uid, email, name, role } = req.body;
+    console.log("Received request:", req.body);
 
-  if (!uid || !email || !name || !role) {
-    return res
-      .status(400)
-      .send({ success: false, message: "uid, email, name, and role are required" });
+    if (!uid || !email || !name || !role) {
+      return res.status(400).send({ success: false, message: "uid, email, name, and role are required" });
+    }
+
+    const path = role === "staff" ? `/staff/${uid}` :
+                 role === "rp" ? `/rp/${uid}` :
+                 `/users/${uid}`;
+
+    await admin.database().ref(path).set({ email, name, role, approved: false });
+
+    const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
+
+    const mailOptions = {
+      from: process.env.GMAIL_USER,
+      to: process.env.ADMIN_EMAIL,
+      subject: "New User Signup Approval Needed",
+      html: `<h2>New user signed up</h2><p>Name: ${name}</p><p>Email: ${email}</p><a href="${approveLink}">Approve</a>`
+    };
+
+    console.log("Sending email:", mailOptions);
+    await transporter.sendMail(mailOptions);
+
+    res.send({ success: true, message: "Approval email sent to admin" });
+  } catch (err) {
+    console.error("Backend error:", err);
+    res.status(500).send({ success: false, message: err.message });
   }
+});
 
-  // Determine the path based on role
-  const path = role === "staff" ? `/staff/${uid}` :
-               role === "rp" ? `/rp/${uid}` :
-               `/users/${uid}`; // fallback if role is unknown
-
-  // Save initial user record in Firebase
-  await admin.database().ref(path).set({
-    email,
-    name,
-    role,
-    approved: false
-  });
 
   // Add role in approval link for reference
   const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
@@ -89,6 +109,9 @@ app.post("/send-approval", async (req, res) => {
     console.error(err);
     res.status(500).send({ success: false, message: err.message });
   }
+  console.log("Approval request received:", req.body);
+console.log("Sending email with options:", mailOptions);
+
 });
 
 /* =============================
@@ -136,7 +159,7 @@ app.get("/approve", async (req, res) => {
     res.status(500).send("<h2>❌ Error approving user</h2>");
   }
 });
-
+4
 /* =============================
    Start Server
    ============================= */
