@@ -94,9 +94,6 @@ app.post("/send-approval", async (req, res) => {
 
 
 /* =============================
-   2) Admin clicks approval link
-   ============================= */
-/* =============================
 // 2) Admin clicks approval link
 ============================= */
 app.get("/approve", async (req, res) => {
@@ -112,7 +109,7 @@ app.get("/approve", async (req, res) => {
 
   try {
     // ✅ Only update approved to true without touching other fields
-    await admin.database().ref(path).update({ approved: true });
+    await admin.database().ref(path).set({ verified: true });
 
     // Fetch user data
     const snapshot = await admin.database().ref(path).once("value");
