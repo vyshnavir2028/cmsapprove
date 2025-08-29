@@ -108,8 +108,8 @@ app.get("/approve", async (req, res) => {
     `/users/${uid}`;
 
   try {
-    // ✅ Only update approved to true without touching other fields
-    await admin.database().ref(path).set({ approved: true });
+    // ✅ Only update verified to true without touching other fields
+    await admin.database().ref(path).update({ verified: true });
 
     // Fetch user data
     const snapshot = await admin.database().ref(path).once("value");
@@ -120,8 +120,8 @@ app.get("/approve", async (req, res) => {
       const notification = {
         app_id: "55812d30-9624-4c35-ba7e-cfd2a00da6fd", // OneSignal App ID
         include_player_ids: [user.playerId],
-        headings: { en: "Account Approved ✅" },
-        contents: { en: `Hello ${user.name || "User"}, your account has been approved! You can now log in.` }
+        headings: { en: "Account Verified ✅" },
+        contents: { en: `Hello ${user.name || "User"}, your account has been verified! You can now log in.` }
       };
 
       await fetch("https://onesignal.com/api/v1/notifications", {
@@ -136,14 +136,13 @@ app.get("/approve", async (req, res) => {
       console.log("Push notification sent via OneSignal");
     }
 
-    res.send("<h2>✅ User approved successfully and notification sent!</h2>");
+    res.send("<h2>✅ User verified successfully and notification sent!</h2>");
 
   } catch (err) {
     console.error(err);
-    res.status(500).send("<h2>❌ Error approving user</h2>");
+    res.status(500).send("<h2>❌ Error verifying user</h2>");
   }
 });
-
 
 /* =============================
    Start Server
