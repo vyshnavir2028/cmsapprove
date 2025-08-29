@@ -49,7 +49,6 @@ const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || "https://cms-approve.onre
 app.post("/send-approval", async (req, res) => {
   try {
     const { uid, email, name, role } = req.body;
-    console.log("Received request:", req.body);
 
     if (!uid || !email || !name || !role) {
       return res.status(400).send({ success: false, message: "uid, email, name, and role are required" });
@@ -60,8 +59,10 @@ app.post("/send-approval", async (req, res) => {
       role === "rp" ? `/rp/${uid}` :
       `/users/${uid}`;
 
-    await admin.database().ref(path).set({ email, name, role, approved: false });
+    // ⚡ Update without overwriting existing data
+    await admin.database().ref(path).update({ email, name, role, approved: false });
 
+    // Send admin email (same as before)
     const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
 
     const mailOptions = {
@@ -81,7 +82,6 @@ app.post("/send-approval", async (req, res) => {
       `
     };
 
-    console.log("Sending email with options:", mailOptions);
     await transporter.sendMail(mailOptions);
 
     res.send({ success: true, message: "Approval email sent to admin" });
@@ -91,6 +91,7 @@ app.post("/send-approval", async (req, res) => {
     res.status(500).send({ success: false, message: err.message });
   }
 });
+
 
 /* =============================
    2) Admin clicks approval link
