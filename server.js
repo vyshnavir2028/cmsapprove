@@ -95,6 +95,9 @@ app.post("/send-approval", async (req, res) => {
 /* =============================
    2) Admin clicks approval link
    ============================= */
+/* =============================
+// 2) Admin clicks approval link
+============================= */
 app.get("/approve", async (req, res) => {
   const { uid, role } = req.query;
 
@@ -107,17 +110,17 @@ app.get("/approve", async (req, res) => {
     `/users/${uid}`;
 
   try {
-    // Mark user as approved
+    // ✅ Only update approved to true without touching other fields
     await admin.database().ref(path).update({ approved: true });
 
     // Fetch user data
     const snapshot = await admin.database().ref(path).once("value");
     const user = snapshot.val();
 
+    // ✅ Send OneSignal push if playerId exists
     if (user && user.playerId) {
-      // Send OneSignal push notification
       const notification = {
-        app_id: "55812d30-9624-4c35-ba7e-cfd2a00da6fd", // your OneSignal app ID
+        app_id: "55812d30-9624-4c35-ba7e-cfd2a00da6fd", // OneSignal App ID
         include_player_ids: [user.playerId],
         headings: { en: "Account Approved ✅" },
         contents: { en: `Hello ${user.name || "User"}, your account has been approved! You can now log in.` }
@@ -142,6 +145,7 @@ app.get("/approve", async (req, res) => {
     res.status(500).send("<h2>❌ Error approving user</h2>");
   }
 });
+
 
 /* =============================
    Start Server
