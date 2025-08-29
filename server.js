@@ -109,7 +109,7 @@ app.get("/approve", async (req, res) => {
 
   try {
     // ✅ Only update approved to true without touching other fields
-    await admin.database().ref(path).set({ verified: true });
+    await admin.database().ref(path).set({ approved: true });
 
     // Fetch user data
     const snapshot = await admin.database().ref(path).once("value");
