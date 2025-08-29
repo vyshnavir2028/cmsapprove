@@ -60,7 +60,7 @@ app.post("/send-approval", async (req, res) => {
       `/users/${uid}`;
 
     // ⚡ Update without overwriting existing data
-    await admin.database().ref(path).update({ email, name, role, approved: false });
+    await admin.database().ref(path).update({ email, name, role, verified: false });
 
     // Send admin email (same as before)
     const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
