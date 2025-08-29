@@ -30,17 +30,15 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_USER || "vaishnavir2028@gmail.com",
     pass: process.env.GMAIL_PASS || "xdlkkdgyhtjfigyq"
   }
-  
 });
+
 transporter.verify((error, success) => {
   if (error) console.error("Email transporter error:", error);
   else console.log("Email transporter is ready");
 });
 
-
-
 /* =============================
-   🔹 Backend URL 
+   🔹 Backend URL
    ============================= */
 const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || "https://cms-approve.onrender.com";
 
@@ -56,62 +54,41 @@ app.post("/send-approval", async (req, res) => {
       return res.status(400).send({ success: false, message: "uid, email, name, and role are required" });
     }
 
-    const path = role === "staff" ? `/staff/${uid}` :
-                 role === "rp" ? `/rp/${uid}` :
-                 `/users/${uid}`;
+    const path =
+      role === "staff" ? `/staff/${uid}` :
+      role === "rp" ? `/rp/${uid}` :
+      `/users/${uid}`;
 
     await admin.database().ref(path).set({ email, name, role, approved: false });
 
     const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
 
     const mailOptions = {
-      from: process.env.GMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
+      from: process.env.GMAIL_USER || "youradmin@gmail.com",
+      to: process.env.ADMIN_EMAIL || "youradmin@gmail.com",
       subject: "New User Signup Approval Needed",
-      html: `<h2>New user signed up</h2><p>Name: ${name}</p><p>Email: ${email}</p><a href="${approveLink}">Approve</a>`
+      html: `
+        <h2>New user signed up</h2>
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Role:</b> ${role}</p>
+        <p>Click below to approve this user:</p>
+        <a href="${approveLink}"
+           style="background:#28a745;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block">
+           Approve User
+        </a>
+      `
     };
 
-    console.log("Sending email:", mailOptions);
+    console.log("Sending email with options:", mailOptions);
     await transporter.sendMail(mailOptions);
 
     res.send({ success: true, message: "Approval email sent to admin" });
+
   } catch (err) {
     console.error("Backend error:", err);
     res.status(500).send({ success: false, message: err.message });
   }
-});
-
-
-  // Add role in approval link for reference
-  const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
-
-  const mailOptions = {
-    from: process.env.GMAIL_USER || "youradmin@gmail.com",
-    to: process.env.ADMIN_EMAIL || "youradmin@gmail.com",
-    subject: "New User Signup Approval Needed",
-    html: `
-      <h2>New user signed up</h2>
-      <p><b>Name:</b> ${name}</p>
-      <p><b>Email:</b> ${email}</p>
-      <p><b>Role:</b> ${role}</p>
-      <p>Click below to approve this user:</p>
-      <a href="${approveLink}"
-         style="background:#28a745;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block">
-         Approve User
-      </a>
-    `
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    res.send({ success: true, message: "Approval email sent to admin" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ success: false, message: err.message });
-  }
-  console.log("Approval request received:", req.body);
-console.log("Sending email with options:", mailOptions);
-
 });
 
 /* =============================
@@ -123,9 +100,10 @@ app.get("/approve", async (req, res) => {
   if (!uid || !role)
     return res.status(400).send("<h3>Missing uid or role</h3>");
 
-  const path = role === "staff" ? `/staff/${uid}` :
-               role === "rp" ? `/rp/${uid}` :
-               `/users/${uid}`;
+  const path =
+    role === "staff" ? `/staff/${uid}` :
+    role === "rp" ? `/rp/${uid}` :
+    `/users/${uid}`;
 
   try {
     // Mark user as approved
@@ -154,12 +132,13 @@ app.get("/approve", async (req, res) => {
     }
 
     res.send("<h2>✅ User approved successfully and confirmation email sent!</h2>");
+
   } catch (err) {
     console.error(err);
     res.status(500).send("<h2>❌ Error approving user</h2>");
   }
 });
-4
+
 /* =============================
    Start Server
    ============================= */
