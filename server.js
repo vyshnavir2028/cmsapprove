@@ -11,10 +11,8 @@ app.use(bodyParser.json());
    ============================= */
 let serviceAccount;
 try {
-  // On Render: load from environment variable
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 } catch (e) {
-  // Local development: fallback to JSON file
   serviceAccount = require("./serviceAccountKey.json");
 }
 
@@ -25,50 +23,57 @@ admin.initializeApp({
 
 /* =============================
    🔹 Nodemailer Setup
-   (use Gmail App Password)
    ============================= */
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.GMAIL_USER || "vaishnavir2028@gmail.com",   // ✅ set in Render
-    pass: process.env.GMAIL_PASS || "xdlkkdgyhtjfigyq"            // ✅ set in Render
+    user: process.env.GMAIL_USER || "vaishnavir2028@gmail.com",
+    pass: process.env.GMAIL_PASS || "xdlkkdgyhtjfigyq"
   }
 });
 
 /* =============================
    🔹 Backend URL
    ============================= */
-const BACKEND_URL =
-  process.env.RENDER_EXTERNAL_URL || "http://localhost:3000";
+const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || "http://localhost:3000";
 
 /* =============================
    1) Android calls after signup
    ============================= */
 app.post("/send-approval", async (req, res) => {
-  const { uid, email, name } = req.body;
-  if (!uid || !email || !name) {
+  const { uid, email, name, role } = req.body;
+
+  if (!uid || !email || !name || !role) {
     return res
       .status(400)
-      .send({ success: false, message: "uid, email, name required" });
+      .send({ success: false, message: "uid, email, name, and role are required" });
   }
 
+  // Determine the path based on role
+  const path = role === "staff" ? `/staff/${uid}` :
+               role === "rp" ? `/rp/${uid}` :
+               `/users/${uid}`; // fallback if role is unknown
+
   // Save initial user record in Firebase
-  await admin.database().ref(`/users/${uid}`).set({
+  await admin.database().ref(path).set({
     email,
     name,
+    role,
     approved: false
   });
 
-  const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}`;
+  // Add role in approval link for reference
+  const approveLink = `${BACKEND_URL}/approve?uid=${encodeURIComponent(uid)}&role=${encodeURIComponent(role)}`;
 
   const mailOptions = {
     from: process.env.GMAIL_USER || "youradmin@gmail.com",
-    to: process.env.ADMIN_EMAIL || "youradmin@gmail.com", // admin receives
+    to: process.env.ADMIN_EMAIL || "youradmin@gmail.com",
     subject: "New User Signup Approval Needed",
     html: `
       <h2>New user signed up</h2>
       <p><b>Name:</b> ${name}</p>
       <p><b>Email:</b> ${email}</p>
+      <p><b>Role:</b> ${role}</p>
       <p>Click below to approve this user:</p>
       <a href="${approveLink}"
          style="background:#28a745;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block">
@@ -90,19 +95,25 @@ app.post("/send-approval", async (req, res) => {
    2) Admin clicks approval link
    ============================= */
 app.get("/approve", async (req, res) => {
-  const { uid } = req.query;
-  if (!uid) return res.status(400).send("<h3>Missing uid</h3>");
+  const { uid, role } = req.query;
+
+  if (!uid || !role)
+    return res.status(400).send("<h3>Missing uid or role</h3>");
+
+  const path = role === "staff" ? `/staff/${uid}` :
+               role === "rp" ? `/rp/${uid}` :
+               `/users/${uid}`;
 
   try {
-    // Update approved flag
-    await admin.database().ref(`/users/${uid}`).update({ approved: true });
+    // Mark user as approved
+    await admin.database().ref(path).update({ approved: true });
 
-    // Fetch user data (email & name)
-    const snapshot = await admin.database().ref(`/users/${uid}`).once("value");
+    // Fetch user data
+    const snapshot = await admin.database().ref(path).once("value");
     const user = snapshot.val();
 
     if (user && user.email) {
-      // Send approval email to the user
+      // Send approval email to user
       const userMailOptions = {
         from: process.env.GMAIL_USER || "youradmin@gmail.com",
         to: user.email,
