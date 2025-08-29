@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
 const admin = require("firebase-admin");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(bodyParser.json());
@@ -113,25 +114,28 @@ app.get("/approve", async (req, res) => {
     const snapshot = await admin.database().ref(path).once("value");
     const user = snapshot.val();
 
-    if (user && user.email) {
-      // Send approval email to user
-      const userMailOptions = {
-        from: process.env.GMAIL_USER || "youradmin@gmail.com",
-        to: user.email,
-        subject: "🎉 Your Account Has Been Approved",
-        html: `
-          <h2>Hello ${user.name || "User"},</h2>
-          <p>✅ Your account has been <b>approved</b> by the admin.</p>
-          <p>You can now log in and start using the system.</p>
-          <br/>
-          <p style="color:gray;font-size:12px">CME Access Management System</p>
-        `
+    if (user && user.playerId) {
+      // Send OneSignal push notification
+      const notification = {
+        app_id: "55812d30-9624-4c35-ba7e-cfd2a00da6fd", // your OneSignal app ID
+        include_player_ids: [user.playerId],
+        headings: { en: "Account Approved ✅" },
+        contents: { en: `Hello ${user.name || "User"}, your account has been approved! You can now log in.` }
       };
 
-      await transporter.sendMail(userMailOptions);
+      await fetch("https://onesignal.com/api/v1/notifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Basic os_v2_app_kwas2mewergdlot6z7jkadng7wbqjv7q3pher54skmskebm6lkklzg6bqukabshxa2y4khr4s4hzojbge6ien6usfuqbqmfyss2v3aa`
+        },
+        body: JSON.stringify(notification)
+      });
+
+      console.log("Push notification sent via OneSignal");
     }
 
-    res.send("<h2>✅ User approved successfully and confirmation email sent!</h2>");
+    res.send("<h2>✅ User approved successfully and notification sent!</h2>");
 
   } catch (err) {
     console.error(err);
